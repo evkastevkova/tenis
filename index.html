@@ -705,7 +705,7 @@ function renderTraining(){
 let mMonth = new Date(); mMonth.setDate(1);
 let mFilterId = '', mfId = null, mfType = 'double', mfDone = true, mfSa = 0, mfSb = 0;
 
-function nameOf(id, m){ const r = db.roster.find(x=>x.id===id); return r ? r.name : ((m && m.n && m.n[id]) || 'bývalý hráč'); }
+function nameOf(id, m){ if(id==='coach') return 'Trénerka Evka'; const r = db.roster.find(x=>x.id===id); return r ? r.name : ((m && m.n && m.n[id]) || 'bývalý hráč'); }
 function teamTxt(ids, m){ return ids.map(id=>esc(nameOf(id,m))).join(' + '); }
 function plZap(n){ return n===1?'zápas':(n>=2&&n<=4?'zápasy':'zápasov'); }
 function matchesOf(mk){ return db.matches.filter(m=>m.date && m.date.indexOf(mk+'-')===0); }
@@ -730,7 +730,7 @@ function matchCard(m){
   return `<div class="mt ${admin?'adm':''}" ${admin?`onclick="openMatch('${m.id}')"`:''}>
     <div class="side ${aw?'w':''}"><div class="nm">${teamTxt(m.a,m)}</div><div class="sc">${m.sa}</div></div>
     <div class="side ${bw?'w':''}"><div class="nm">${teamTxt(m.b,m)}</div><div class="sc">${m.sb}</div></div>
-    <div class="tag"><span class="chip">${m.type==='double'?'štvorhra':'dvojhra'}</span>${m.done?'':'<span class="chip o">nedohraný</span>'}</div>
+    <div class="tag"><span class="chip">${m.type==='double'?'štvorhra':'dvojhra'}</span>${m.done?'':'<span class="chip o">nedohraný</span>'}${admin?'<span class="chip">✎ upraviť</span>':''}</div>
   </div>`;
 }
 
@@ -760,7 +760,7 @@ function renderMatches(){
       <div class="cnt"><b>${s.gf}:${s.ga}</b><small>gemy</small></div></div>` : '';
   } else mine.innerHTML = '';
 
-  const rank = Object.values(stats).sort((a,b)=>(b.gf-a.gf)||((b.gf-b.ga)-(a.gf-a.ga))||nameOf(a.id,a.m).localeCompare(nameOf(b.id,b.m),'sk'));
+  const rank = Object.values(stats).filter(r=>r.id!=='coach').sort((a,b)=>(b.gf-a.gf)||((b.gf-b.ga)-(a.gf-a.ga))||nameOf(a.id,a.m).localeCompare(nameOf(b.id,b.m),'sk'));
   const medal = ['🥇','🥈','🥉'];
   document.getElementById('mRank').innerHTML = rank.length ? rank.map((r,i)=>`
     <div class="item">
@@ -809,7 +809,7 @@ window.mFilterChange = ()=>{ mFilterId = document.getElementById('mFilter').valu
 
 function fillSel(id,val){
   const el = document.getElementById(id);
-  el.innerHTML = '<option value="">— vyber hráča —</option>' + sorted().map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.group}.</option>`).join('');
+  el.innerHTML = '<option value="">— vyber hráča —</option><option value="coach">🎾 Trénerka Evka</option>' + sorted().map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.group}.</option>`).join('');
   el.value = val || '';
 }
 function paintMType(){
