@@ -185,6 +185,30 @@
   .totals b{display:block;font-size:20px;margin-top:2px;color:var(--text)}
   .totals .ok b{color:var(--green)} .totals .no b{color:var(--red)}
   .totals .all{grid-column:1/-1}
+
+  /* zápasy */
+  .big.match{background:linear-gradient(135deg,#5e3d26,#3a2315);box-shadow:0 8px 20px rgba(0,0,0,.45),inset 0 0 0 1px rgba(212,225,87,.35)}
+  .big.match::before{background:var(--ball)}
+  .big.match .ico{background:var(--ball);border-radius:50%;color:#26340f}
+  select,input[type=date]{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:16px;outline:none;color-scheme:dark}
+  select:focus,input[type=date]:focus{border-color:var(--clay)}
+  #mFilter{margin-bottom:14px;background:rgba(29,23,19,.86)}
+  .mt{padding:12px 14px;border-radius:16px;margin-bottom:8px;border:1px solid var(--line);background:rgba(29,23,19,.86);backdrop-filter:blur(6px)}
+  .mt.adm{cursor:pointer}
+  .mt.adm:active{border-color:var(--clay)}
+  .mt .side{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .mt .side .nm{flex:1;min-width:0;font-size:15px;color:var(--muted)}
+  .mt .side .sc{font-size:22px;font-weight:700;min-width:28px;text-align:right;color:var(--muted)}
+  .mt .side.w .nm{color:var(--text);font-weight:650}
+  .mt .side.w .sc{color:var(--green)}
+  .mt .tag{display:flex;gap:6px;margin-top:6px}
+  .chip.o{color:#ffb86b;border-color:rgba(255,184,107,.45)}
+  .item .rk{width:26px;text-align:center;color:var(--muted);font-weight:700;flex:none}
+  .step{display:flex;align-items:center;justify-content:center;gap:12px}
+  .step button{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:22px;cursor:pointer}
+  .step button:active{border-color:var(--clay)}
+  .step .v{min-width:38px;text-align:center;font-size:30px;font-weight:700}
+  .cap{text-align:center;font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -228,6 +252,11 @@
       <span class="t">Prehľad tréningov</span>
       <span class="chev">›</span>
     </button>
+    <button class="big match" onclick="show('matches')">
+      <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M12 4.5v15M6.5 10h2M15.5 10h2M6.5 14h2M15.5 14h2"/></svg></span>
+      <span class="t">Zápasy</span>
+      <span class="chev">›</span>
+    </button>
     <footer id="foot"></footer>
   </section>
 
@@ -254,6 +283,27 @@
     <div class="hint" id="trHint">✓ prišiel(a) · ✗ chýbal(a) · ďalším ťuknutím zrušíš</div>
     <div class="sec" id="trSecTitle">Súhrn za mesiac</div>
     <div id="trSummary"></div>
+  </section>
+
+  <!-- ZÁPASY -->
+  <section id="matches" class="hidden">
+    <button class="back" onclick="show('home')">‹ Späť</button>
+    <h2>Zápasy</h2>
+    <div class="month">
+      <button onclick="shiftMMonth(-1)">‹</button>
+      <div id="mMonthLabel"></div>
+      <button onclick="shiftMMonth(1)">›</button>
+    </div>
+    <button class="fab adminonly" onclick="openMatch()">+ Pridať zápas</button>
+    <select id="mFilter" onchange="mFilterChange()"></select>
+    <div id="mMine"></div>
+    <div class="sec">Rebríček mesiaca · vyhraté gemy</div>
+    <div id="mRank"></div>
+    <div class="sec">Štvorhry · kto proti komu najčastejšie</div>
+    <div id="mVs"></div>
+    <div class="sec">Štvorhry · najčastejší spoluhráči</div>
+    <div id="mPar"></div>
+    <div id="mList"></div>
   </section>
 
   <!-- PLATBY -->
@@ -313,6 +363,40 @@
   </div>
 </div>
 
+<!-- FORMULÁR ZÁPASU -->
+<div class="sheet hidden" id="matchSheet" onclick="if(event.target===this)closeMatch()">
+  <div class="card">
+    <h2 id="mfTitle">Nový zápas</h2>
+    <label>Dátum tréningu</label>
+    <input type="date" id="mfDate">
+    <label>Typ</label>
+    <div class="seg" id="segMType"></div>
+
+    <label>Strana A</label>
+    <select id="mfA1"></select>
+    <select id="mfA2" style="margin-top:8px"></select>
+    <label>Strana B</label>
+    <select id="mfB1"></select>
+    <select id="mfB2" style="margin-top:8px"></select>
+
+    <label>Skóre (gemy)</label>
+    <div class="two">
+      <div><div class="cap">Strana A</div><div class="step"><button type="button" onclick="mStep('a',-1)">−</button><div class="v" id="mfSa">0</div><button type="button" onclick="mStep('a',1)">+</button></div></div>
+      <div><div class="cap">Strana B</div><div class="step"><button type="button" onclick="mStep('b',-1)">−</button><div class="v" id="mfSb">0</div><button type="button" onclick="mStep('b',1)">+</button></div></div>
+    </div>
+
+    <label>Stav zápasu</label>
+    <div class="seg" id="segMDone"></div>
+    <div class="hint">Nedohraný zápas (napr. 4:1): rátajú sa len gemy, výhra/prehra sa nepočíta.</div>
+    <div class="err" id="mfErr"></div>
+    <div class="actions">
+      <button class="btn d hidden" id="mfDel" onclick="removeMatch()">Zmazať</button>
+      <button class="btn" onclick="closeMatch()">Zrušiť</button>
+      <button class="btn p" onclick="saveMatch()">Uložiť</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRIHLÁSENIE SPRÁVCU -->
 <div class="sheet hidden" id="loginSheet" onclick="if(event.target===this)closeLogin()">
   <div class="card">
@@ -332,7 +416,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, collection, doc, onSnapshot, setDoc, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 
 
@@ -358,7 +442,7 @@ const DAYS = ['nedeľa','pondelok','utorok','streda','štvrtok','piatok','sobota
 const MONTHS_GEN = ['januára','februára','marca','apríla','mája','júna','júla','augusta','septembra','októbra','novembra','decembra'];
 
 // players, payments = len správca; roster, attendance = verejné
-let db = {players:[], roster:[], payments:{}, attendance:{}};
+let db = {players:[], roster:[], payments:{}, attendance:{}, matches:[]};
 let admin = false, cur = 'home', fs = null, auth = null, unsubAdmin = [];
 let viewMonth = new Date(); viewMonth.setDate(1);
 let trMonth = new Date(); trMonth.setDate(1);
@@ -384,7 +468,7 @@ let selDate = ymd(new Date());
 /* ---------- navigácia ---------- */
 function applySection(){
   if(!admin && (cur==='players'||cur==='payments')) cur='home';
-  ['home','players','payments','training'].forEach(s=>document.getElementById(s).classList.toggle('hidden',s!==cur));
+  ['home','players','payments','training','matches'].forEach(s=>document.getElementById(s).classList.toggle('hidden',s!==cur));
   document.getElementById('hdr').classList.toggle('hero', cur==='home');
 }
 window.show = id=>{ cur=id; render(); window.scrollTo(0,0); };
@@ -396,6 +480,7 @@ function render(){
   const paid = db.payments[mkey(new Date())]||{};
   document.getElementById('cntUnpaid').textContent = db.players.filter(p=>!paid[p.id]).length;
   if(admin){ renderPlayers(); renderPayments(); }
+  renderMatches();
   renderTraining();
 }
 function renderFoot(){
@@ -517,7 +602,7 @@ document.getElementById('fFee').addEventListener('input',paintFee);
 
 /* ---------- záloha ---------- */
 window.exportData = ()=>{
-  const out = {players:db.players, payments:db.payments, attendance:db.attendance};
+  const out = {players:db.players, payments:db.payments, attendance:db.attendance, matches:db.matches};
   const b = new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(b);
   a.download = 'tenis-zaloha-'+mkey(new Date())+'.json'; a.click();
@@ -539,6 +624,7 @@ window.importData = e=>{
       });
       Object.entries(d.payments||{}).forEach(([k,m])=>ops.push(b=>b.set(doc(fs,'payments',k),m,{merge:true})));
       Object.entries(d.attendance||{}).forEach(([k,m])=>ops.push(b=>b.set(doc(fs,'attendance',k),m,{merge:true})));
+      (d.matches||[]).forEach(m=>{ if(m&&m.id) ops.push(b=>b.set(doc(fs,'matches',m.id),m)); });
       for(let i=0;i<ops.length;i+=400){ const b=writeBatch(fs); ops.slice(i,i+400).forEach(fn=>fn(b)); await b.commit(); }
       alert('Dáta obnovené.');
     }catch(x){ fail(x); }
@@ -615,6 +701,168 @@ function renderTraining(){
     </div>`).join('');
 }
 
+/* ---------- zápasy ---------- */
+let mMonth = new Date(); mMonth.setDate(1);
+let mFilterId = '', mfId = null, mfType = 'double', mfDone = true, mfSa = 0, mfSb = 0;
+
+function nameOf(id, m){ const r = db.roster.find(x=>x.id===id); return r ? r.name : ((m && m.n && m.n[id]) || 'bývalý hráč'); }
+function teamTxt(ids, m){ return ids.map(id=>esc(nameOf(id,m))).join(' + '); }
+function plZap(n){ return n===1?'zápas':(n>=2&&n<=4?'zápasy':'zápasov'); }
+function matchesOf(mk){ return db.matches.filter(m=>m.date && m.date.indexOf(mk+'-')===0); }
+
+// gemy sa rátajú vždy; výhra/prehra len pri dohranom zápase
+function statsOf(list){
+  const s = {};
+  const get = (id,m)=> s[id] || (s[id] = {id, m, mp:0, w:0, l:0, gf:0, ga:0});
+  list.forEach(m=>{
+    [[m.a,m.sa,m.sb],[m.b,m.sb,m.sa]].forEach(t=>{
+      t[0].forEach(id=>{
+        const x = get(id,m); x.mp++; x.gf += t[1]; x.ga += t[2];
+        if(m.done){ if(t[1]>t[2]) x.w++; else if(t[1]<t[2]) x.l++; }
+      });
+    });
+  });
+  return s;
+}
+
+function matchCard(m){
+  const aw = m.done && m.sa>m.sb, bw = m.done && m.sb>m.sa;
+  return `<div class="mt ${admin?'adm':''}" ${admin?`onclick="openMatch('${m.id}')"`:''}>
+    <div class="side ${aw?'w':''}"><div class="nm">${teamTxt(m.a,m)}</div><div class="sc">${m.sa}</div></div>
+    <div class="side ${bw?'w':''}"><div class="nm">${teamTxt(m.b,m)}</div><div class="sc">${m.sb}</div></div>
+    <div class="tag"><span class="chip">${m.type==='double'?'štvorhra':'dvojhra'}</span>${m.done?'':'<span class="chip o">nedohraný</span>'}</div>
+  </div>`;
+}
+
+function renderMatches(){
+  const mk = mkey(mMonth);
+  document.getElementById('mMonthLabel').textContent = MONTHS[mMonth.getMonth()]+' '+mMonth.getFullYear();
+
+  const ppl = sorted();
+  const sig = ppl.map(p=>p.id+p.name).join('|');
+  const sel = document.getElementById('mFilter');
+  if(sel.dataset.sig !== sig){
+    sel.dataset.sig = sig;
+    sel.innerHTML = '<option value="">Všetci hráči</option>' + ppl.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  }
+  sel.value = mFilterId;
+  if(sel.value !== mFilterId){ mFilterId = ''; sel.value = ''; }
+
+  const all = matchesOf(mk);
+  const stats = statsOf(all);
+  const empty = '<div class="empty">V tomto mesiaci zatiaľ žiadne zápasy.</div>';
+
+  const mine = document.getElementById('mMine');
+  if(mFilterId){
+    const s = stats[mFilterId];
+    mine.innerHTML = s ? `<div class="item"><div class="grow"><div class="name">${esc(nameOf(mFilterId,s.m))}</div>
+      <div class="meta">${s.mp} ${plZap(s.mp)} · výhry ${s.w} · prehry ${s.l}</div></div>
+      <div class="cnt"><b>${s.gf}:${s.ga}</b><small>gemy</small></div></div>` : '';
+  } else mine.innerHTML = '';
+
+  const rank = Object.values(stats).sort((a,b)=>(b.gf-a.gf)||((b.gf-b.ga)-(a.gf-a.ga))||nameOf(a.id,a.m).localeCompare(nameOf(b.id,b.m),'sk'));
+  const medal = ['🥇','🥈','🥉'];
+  document.getElementById('mRank').innerHTML = rank.length ? rank.map((r,i)=>`
+    <div class="item">
+      <div class="rk">${medal[i]||(i+1)}</div>
+      <div class="grow"><div class="name">${esc(nameOf(r.id,r.m))}</div>
+        <div class="meta">${r.mp} ${plZap(r.mp)} · V ${r.w} · P ${r.l} · gemy ${r.gf}:${r.ga}</div></div>
+      <div class="cnt"><b>${r.gf}</b><small>vyhraté gemy</small></div>
+    </div>`).join('') : empty;
+
+  const pk = t=>[...t].sort().join('+');
+  const vs = {}, par = {};
+  all.filter(m=>m.type==='double').forEach(m=>{
+    const ka = pk(m.a), kb = pk(m.b), flip = ka>kb;
+    const key = (flip?kb:ka)+'|'+(flip?ka:kb);
+    const e = vs[key] || (vs[key] = {t1:flip?m.b:m.a, t2:flip?m.a:m.b, n:0, g1:0, g2:0, m});
+    e.n++; e.g1 += flip?m.sb:m.sa; e.g2 += flip?m.sa:m.sb;
+    [[m.a,m.sa,m.sb],[m.b,m.sb,m.sa]].forEach(t=>{
+      const k = pk(t[0]);
+      const p = par[k] || (par[k] = {ids:t[0], n:0, gf:0, ga:0, m});
+      p.n++; p.gf += t[1]; p.ga += t[2];
+    });
+  });
+  const vsList = Object.values(vs).sort((a,b)=>(b.n-a.n)||((b.g1+b.g2)-(a.g1+a.g2))).slice(0,6);
+  const parList = Object.values(par).sort((a,b)=>(b.n-a.n)||(b.gf-a.gf)).slice(0,6);
+  const noDbl = '<div class="empty">Zatiaľ žiadne štvorhry.</div>';
+  document.getElementById('mVs').innerHTML = vsList.length ? vsList.map(e=>`
+    <div class="item"><div class="grow"><div class="name">${teamTxt(e.t1,e.m)}</div><div class="meta">proti ${teamTxt(e.t2,e.m)}</div></div>
+    <div class="cnt"><b>${e.n}×</b><small>gemy ${e.g1}:${e.g2}</small></div></div>`).join('') : noDbl;
+  document.getElementById('mPar').innerHTML = parList.length ? parList.map(e=>`
+    <div class="item"><div class="grow"><div class="name">${teamTxt(e.ids,e.m)}</div><div class="meta">spolu gemy ${e.gf}:${e.ga}</div></div>
+    <div class="cnt"><b>${e.n}×</b><small>spolu</small></div></div>`).join('') : noDbl;
+
+  let list = all.slice();
+  if(mFilterId) list = list.filter(m=>m.a.includes(mFilterId)||m.b.includes(mFilterId));
+  const byDay = {};
+  list.forEach(m=>{ (byDay[m.date] = byDay[m.date] || []).push(m); });
+  const days = Object.keys(byDay).sort().reverse();
+  document.getElementById('mList').innerHTML = days.length ? days.map(k=>{
+    const dt = parseYmd(k), arr = byDay[k].sort((a,b)=>(a.ts||0)-(b.ts||0));
+    const lbl = DAYS[dt.getDay()]+' '+dt.getDate()+'. '+MONTHS_GEN[dt.getMonth()];
+    return `<div class="sec">${lbl.charAt(0).toUpperCase()+lbl.slice(1)} · ${arr.length} ${plZap(arr.length)}</div>` + arr.map(matchCard).join('');
+  }).join('') : '<div class="sec">Zápasy po tréningoch</div>'+empty;
+}
+window.shiftMMonth = n=>{ mMonth.setMonth(mMonth.getMonth()+n); renderMatches(); };
+window.mFilterChange = ()=>{ mFilterId = document.getElementById('mFilter').value; renderMatches(); };
+
+function fillSel(id,val){
+  const el = document.getElementById(id);
+  el.innerHTML = '<option value="">— vyber hráča —</option>' + sorted().map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.group}.</option>`).join('');
+  el.value = val || '';
+}
+function paintMType(){
+  seg('segMType',['double','single'],mfType,v=>{mfType=v;paintMType();},v=>v==='double'?'Štvorhra':'Dvojhra');
+  ['mfA2','mfB2'].forEach(i=>document.getElementById(i).classList.toggle('hidden',mfType!=='double'));
+}
+function paintMDone(){ seg('segMDone',[true,false],mfDone,v=>{mfDone=v;paintMDone();},v=>v?'Dohraný':'Nedohraný'); }
+function paintMScore(){ document.getElementById('mfSa').textContent = mfSa; document.getElementById('mfSb').textContent = mfSb; }
+window.mStep = (side,d)=>{
+  if(side==='a') mfSa = Math.max(0,Math.min(99,mfSa+d)); else mfSb = Math.max(0,Math.min(99,mfSb+d));
+  paintMScore();
+};
+window.openMatch = id=>{
+  if(!admin) return;
+  mfId = id || null;
+  const m = id ? db.matches.find(x=>x.id===id) : null;
+  document.getElementById('mfTitle').textContent = m ? 'Upraviť zápas' : 'Nový zápas';
+  document.getElementById('mfDate').value = m ? m.date : selDate;
+  mfType = m ? m.type : 'double'; mfDone = m ? m.done!==false : true;
+  mfSa = m ? m.sa : 0; mfSb = m ? m.sb : 0;
+  fillSel('mfA1', m && m.a[0]); fillSel('mfA2', m && m.a[1]);
+  fillSel('mfB1', m && m.b[0]); fillSel('mfB2', m && m.b[1]);
+  document.getElementById('mfErr').textContent = '';
+  document.getElementById('mfDel').classList.toggle('hidden',!m);
+  paintMType(); paintMDone(); paintMScore();
+  document.getElementById('matchSheet').classList.remove('hidden');
+};
+window.closeMatch = ()=>{ document.getElementById('matchSheet').classList.add('hidden'); };
+window.saveMatch = async ()=>{
+  if(!ready()) return;
+  const err = t=>{ document.getElementById('mfErr').textContent = t; };
+  const need = mfType==='double' ? 2 : 1;
+  const val = i=>document.getElementById(i).value;
+  const a = ['mfA1','mfA2'].slice(0,need).map(val), b = ['mfB1','mfB2'].slice(0,need).map(val);
+  const date = val('mfDate');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return err('Vyber dátum.');
+  if([...a,...b].some(x=>!x)) return err('Vyber všetkých hráčov.');
+  if(new Set([...a,...b]).size !== need*2) return err('Hráč sa nemôže opakovať.');
+  const n = {};
+  [...a,...b].forEach(id=>{ const p = db.players.find(x=>x.id===id); if(p) n[id] = shortName(p.name); });
+  const old = mfId ? db.matches.find(x=>x.id===mfId) : null;
+  const id = mfId || 'm'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  try{
+    await setDoc(doc(fs,'matches',id), {id, date, type:mfType, a, b, sa:mfSa, sb:mfSb, done:mfDone, n, ts:(old&&old.ts)||Date.now()});
+    const d = parseYmd(date); mMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    window.closeMatch(); renderMatches();
+  }catch(e){ fail(e); }
+};
+window.removeMatch = async ()=>{
+  if(!ready() || !mfId || !confirm('Naozaj zmazať tento zápas?')) return;
+  try{ await deleteDoc(doc(fs,'matches',mfId)); window.closeMatch(); }catch(e){ fail(e); }
+};
+
 /* ---------- prihlásenie správcu ---------- */
 window.openLogin = ()=>{
   document.getElementById('loginErr').textContent = '';
@@ -642,6 +890,7 @@ if(CONFIGURED){
   // verejné údaje – vidí každý
   onSnapshot(collection(fs,'roster'), s=>{ db.roster = s.docs.map(d=>({id:d.id, ...d.data()})); render(); }, e=>console.error(e));
   onSnapshot(collection(fs,'attendance'), s=>{ const a={}; s.forEach(d=>{ a[d.id]=d.data(); }); db.attendance=a; render(); }, e=>console.error(e));
+  onSnapshot(collection(fs,'matches'), s=>{ db.matches = s.docs.map(d=>({id:d.id, ...d.data()})); render(); }, e=>console.error(e));
 
   // súkromné údaje – len po prihlásení správcu
   onAuthStateChanged(auth, u=>{
