@@ -230,6 +230,7 @@
   .slotteam .cap{margin-bottom:6px}
   .slotteam div.s{font-size:15px;font-weight:600;padding:2px 0}
   .slotteam div.s.e{color:var(--muted);font-weight:400}
+  #drawPlayers button{min-width:calc(50% - 4px)}
   .conf{position:fixed;top:-20px;z-index:60;pointer-events:none;animation:confall linear forwards}
   @keyframes confall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
 </style>
@@ -303,8 +304,6 @@
     <div class="cal" id="cal"></div>
     <div class="dayhead"><div id="dayLabel"></div><a id="allBtn" onclick="allPresent()">Všetci prítomní</a></div>
     <div id="dayList"></div>
-    <div class="drawbar"><button class="minibtn hidden" id="drawBtn" onclick="openDraw()">🎾 Žreb dvojíc</button></div>
-    <div id="drawView"></div>
     <div class="hint" id="trHint">✓ prišiel(a) · ✗ chýbal(a) · ďalším ťuknutím zrušíš</div>
     <div class="sec" id="trSecTitle">Súhrn za mesiac</div>
     <div id="trSummary"></div>
@@ -320,6 +319,7 @@
       <button onclick="shiftMMonth(1)">›</button>
     </div>
     <button class="fab adminonly" onclick="openMatch()">+ Pridať zápas</button>
+    <button class="fab adminonly" style="margin-top:-6px;background:transparent;color:var(--text);border:1px solid var(--clay)" onclick="openDraw()">🎾 Žreb dvojíc</button>
     <select id="mFilter" onchange="mFilterChange()"></select>
     <div id="mMine"></div>
     <div class="sec">Rebríček mesiaca · vyhraté gemy</div>
@@ -430,7 +430,6 @@
     <div id="drawBody"></div>
     <div class="actions">
       <button class="btn" onclick="closeDraw()">Zavrieť</button>
-      <button class="btn p hidden" id="drawSave" onclick="saveDraw()">Uložiť k tréningu</button>
     </div>
   </div>
 </div>
@@ -725,7 +724,6 @@ function renderTraining(){
       ${ctl}</div>`;
   }).join('') : '<div class="empty">Zatiaľ žiadni hráči.</div>';
 
-  renderDrawView();
 
   const keys = Object.keys(db.attendance).filter(k=>k.indexOf(mk+'-')===0 && hasMarks(db.attendance[k]));
   document.getElementById('trSecTitle').textContent = 'Súhrn za mesiac · '+keys.length+' '+plural(keys.length);
@@ -903,55 +901,72 @@ window.removeMatch = async ()=>{
   try{ await deleteDoc(doc(fs,'matches',mfId)); window.closeMatch(); }catch(e){ fail(e); }
 };
 
-/* ---------- žreb dvojíc (koleso šťastia) ---------- */
-const DRAW_GROUPS = [3,4];
+/* ---------- žreb dvojíc (koleso šťastia) – bez ukladania, losuje sa podľa potreby ---------- */
+const DRAW_GROUPS = [1,2,3,4];
 const WHEEL_COLORS = ['#c8643c','#e0a458','#8a5a3c','#6f8f5a','#b8472f','#d98e5f'];
-let dGroup = 4, dState = null, dSpinning = false, dRot = 0;
+let dGroup = 4, dSel = [], dState = null, dSpinning = false, dRot = 0;
 
-function presentIn(g){
+function groupPlayers(g){
+  return db.players.filter(p=>Number(p.group)===g).sort((a,b)=>a.name.localeCompare(b.name,'sk'));
+}
+// predvyplní prítomných z dnešného tréningu (ak ich je najviac 4), inak nechá výber prázdny
+function presetSel(){
   const day = db.attendance[selDate]||{};
-  return db.players.filter(p=>Number(p.group)===g && day[p.id]==='p')
-    .sort((a,b)=>a.name.localeCompare(b.name,'sk'));
+  const ids = groupPlayers(dGroup).filter(p=>day[p.id]==='p').map(p=>p.id);
+  dSel = ids.length<=4 ? ids : [];
 }
 function dLabel(id){ if(id==='coach') return 'Evka (trénerka)'; return nameOf(id); }
 function dWheelLabel(it){ return it.id==='coach' ? 'Evka' : it.label; }
-function resetDraw(){
-  const pl = presentIn(dGroup).map(p=>({id:p.id, label:shortName(p.name)}));
-  dSpinning = false;
-  if(pl.length<2){ dState = {mode:'none', n:pl.length, pool:[], picked:[], done:false}; return; }
-  if(pl.length===2){ dState = {mode:'single', n:2, pool:[], picked:pl.map(x=>x.id), done:true}; return; }
-  const pool = pl.slice(0,4);
-  if(pool.length===3) pool.push({id:'coach', label:'Evka'});
-  dState = {mode:'double', n:pl.length, pool, picked:[], done:false};
-}
-function drawPairs(){
-  if(!dState || !dState.done) return null;
-  const p = dState.picked;
-  return dState.mode==='single' ? [[p[0]],[p[1]]] : [[p[0],p[1]],[p[2],p[3]]];
-}
+
 window.openDraw = ()=>{
   if(!ready()) return;
-  if(!DRAW_GROUPS.includes(dGroup)) dGroup = 4;
-  resetDraw();
+  dState = null; dSpinning = false; dRot = 0;
+  presetSel();
   document.getElementById('drawSheet').classList.remove('hidden');
   paintDraw();
 };
 window.closeDraw = ()=>{ if(dSpinning) return; document.getElementById('drawSheet').classList.add('hidden'); };
-window.pickDrawGroup = g=>{ if(dSpinning) return; dGroup = g; resetDraw(); paintDraw(); };
-window.redoDraw = ()=>{ if(dSpinning) return; resetDraw(); paintDraw(); };
+window.pickDrawGroup = g=>{ if(dSpinning) return; dGroup = g; dState = null; dRot = 0; presetSel(); paintDraw(); };
+window.toggleDrawPlayer = id=>{
+  if(dSpinning) return;
+  const i = dSel.indexOf(id);
+  if(i>=0) dSel.splice(i,1);
+  else if(dSel.length>=4) return alert('Žrebuje sa najviac 4 hráčov.');
+  else dSel.push(id);
+  paintDraw();
+};
+window.editDraw = ()=>{ if(dSpinning) return; dState = null; dRot = 0; paintDraw(); };
+window.startDraw = ()=>{
+  if(dSpinning) return;
+  const pl = dSel.map(id=>{ const p = db.players.find(x=>x.id===id); return {id, label: shortName(p?p.name:'')}; });
+  dRot = 0;
+  if(pl.length<2) return;
+  if(pl.length===2){ dState = {mode:'single', pool:[], picked:pl.map(x=>x.id), done:true}; paintDraw(); return; }
+  const pool = pl.slice();
+  if(pool.length===3) pool.push({id:'coach', label:'Evka'});
+  dState = {mode:'double', pool, picked:[], done:false, evka:pl.length===3};
+  paintDraw();
+};
 
 function paintDraw(){
   document.getElementById('drawSeg').innerHTML = DRAW_GROUPS.map(g=>
     `<button class="${g===dGroup?'on':''}" onclick="pickDrawGroup(${g})">${g}. skupina</button>`).join('');
-  const dt = parseYmd(selDate);
-  let h = `<div class="hint" style="margin-top:12px">Tréning: ${dt.getDate()}. ${dt.getMonth()+1}. ${dt.getFullYear()} · prítomných v skupine: ${dState.n}</div>`;
+  let h = '';
   const s = dState;
-  if(s.mode==='none'){
-    h += `<div class="empty" style="margin-top:10px">${s.n===1?'Prítomné je len 1 dieťa – zápas sa nehrá.':'Nikto z tejto skupiny nie je označený ako prítomný.'}</div>`;
+  if(!s){
+    const pl = groupPlayers(dGroup);
+    if(!pl.length){
+      h = '<div class="empty" style="margin-top:12px">V tejto skupine nie sú žiadni hráči.</div>';
+    } else {
+      h = `<label>Kto hrá (vyber 2 až 4 hráčov)</label>
+        <div class="seg" id="drawPlayers">${pl.map(p=>`<button type="button" class="${dSel.includes(p.id)?'on':''}" onclick="toggleDrawPlayer('${p.id}')">${esc(p.name)}</button>`).join('')}</div>
+        <div class="hint" style="margin-top:10px">Vybraní: ${dSel.length}. ${dSel.length===2?'Bude dvojhra.':dSel.length===3?'Štvrtá hráčka bude Evka.':dSel.length===4?'Budú dvojice na štvorhru.':'Vyber aspoň 2 hráčov.'}</div>
+        <div style="text-align:center;margin-top:12px"><button class="minibtn" ${dSel.length<2?'disabled':''} onclick="startDraw()">🎾 Losovať</button></div>`;
+    }
   } else if(s.mode==='single'){
-    h += `<div class="drawcard"><div class="dt">Dvojhra</div><div class="dm">${esc(dLabel(s.picked[0]))}<i>vs</i>${esc(dLabel(s.picked[1]))}</div></div>`;
+    h = `<div class="drawcard"><div class="dt">Dvojhra</div><div class="dm">${esc(dLabel(s.picked[0]))}<i>vs</i>${esc(dLabel(s.picked[1]))}</div></div>`;
   } else {
-    if(s.n===3) h += `<div class="hint">Prítomné sú 3 deti – ako štvrtá hráčka sa pridá Evka.</div>`;
+    if(s.evka) h += `<div class="hint" style="margin-top:12px">Vybrané sú 3 deti – ako štvrtá hráčka sa pridá Evka.</div>`;
     if(!s.done){
       h += `<div class="wheelwrap"><div class="ptr"></div><canvas id="wheel" width="520" height="520"></canvas></div>
         <div style="text-align:center"><button class="minibtn" id="spinBtn" onclick="spinDraw()">🎡 Zatočiť koleso (${s.picked.length+1}/3)</button></div>`;
@@ -959,11 +974,14 @@ function paintDraw(){
     const sl = i => s.picked[i]!=null ? `<div class="s">${esc(dLabel(s.picked[i]))}</div>` : `<div class="s e">…</div>`;
     h += `<div class="slots"><div class="slotteam"><div class="cap">Pár A</div>${sl(0)}${sl(1)}</div>
       <div class="slotteam"><div class="cap">Pár B</div>${sl(2)}${sl(3)}</div></div>`;
-    if(s.done) h += `<div style="text-align:center;margin-top:10px"><button class="minibtn" onclick="redoDraw()">↻ Losovať znova</button></div>`;
+  }
+  if(s && s.done){
+    h += `<div style="text-align:center;margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="minibtn" onclick="startDraw()">↻ Losovať znova</button>
+      <button class="minibtn" onclick="editDraw()">✎ Zmeniť hráčov</button></div>`;
   }
   document.getElementById('drawBody').innerHTML = h;
-  document.getElementById('drawSave').classList.toggle('hidden', !s.done);
-  if(s.mode==='double' && !s.done) drawWheel(s.pool, dRot);
+  if(s && s.mode==='double' && !s.done) drawWheel(s.pool, dRot);
 }
 
 function drawWheel(items, rot){
@@ -1020,29 +1038,6 @@ function confetti(){
     document.body.appendChild(d);
     setTimeout(()=>d.remove(), 5000);
   }
-}
-window.saveDraw = async ()=>{
-  if(!ready()) return;
-  const pairs = drawPairs(); if(!pairs) return;
-  try{
-    await setDoc(doc(fs,'attendance',selDate), {['_draw'+dGroup]:{type:dState.mode==='single'?'single':'double', pairs: pairs.map(t=>({p:t})), ts:Date.now()}}, {merge:true});
-    document.getElementById('drawSheet').classList.add('hidden');
-  }catch(e){ fail(e); }
-};
-window.deleteDraw = async g=>{
-  if(!ready() || !confirm('Zmazať uložený žreb?')) return;
-  try{ await setDoc(doc(fs,'attendance',selDate), {['_draw'+g]:deleteField()}, {merge:true}); }catch(e){ fail(e); }
-};
-function renderDrawView(){
-  document.getElementById('drawBtn').classList.toggle('hidden', !admin);
-  const day = db.attendance[selDate]||{};
-  document.getElementById('drawView').innerHTML = DRAW_GROUPS.map(g=>{
-    const d = day['_draw'+g]; if(!d || !Array.isArray(d.pairs)) return '';
-    const m = null;
-    const pairs = d.pairs.map(t=>Array.isArray(t) ? t : (t.p||[]));
-    const txt = pairs.map(t=>teamTxt(t,m)).join('<i>vs</i>');
-    return `<div class="drawcard"><div class="dt"><span>🎾 ${d.type==='single'?'Dvojhra':'Žreb dvojíc'} · ${g}. skupina</span>${admin?`<a onclick="deleteDraw(${g})" aria-label="Zmazať žreb">✕</a>`:''}</div><div class="dm">${txt}</div></div>`;
-  }).join('');
 }
 
 /* ---------- prihlásenie správcu ---------- */
