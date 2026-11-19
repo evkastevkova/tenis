@@ -1025,7 +1025,7 @@ window.saveDraw = async ()=>{
   if(!ready()) return;
   const pairs = drawPairs(); if(!pairs) return;
   try{
-    await setDoc(doc(fs,'attendance',selDate), {['_draw'+dGroup]:{type:dState.mode==='single'?'single':'double', pairs, ts:Date.now()}}, {merge:true});
+    await setDoc(doc(fs,'attendance',selDate), {['_draw'+dGroup]:{type:dState.mode==='single'?'single':'double', pairs: pairs.map(t=>({p:t})), ts:Date.now()}}, {merge:true});
     document.getElementById('drawSheet').classList.add('hidden');
   }catch(e){ fail(e); }
 };
@@ -1039,7 +1039,8 @@ function renderDrawView(){
   document.getElementById('drawView').innerHTML = DRAW_GROUPS.map(g=>{
     const d = day['_draw'+g]; if(!d || !Array.isArray(d.pairs)) return '';
     const m = null;
-    const txt = d.pairs.map(t=>teamTxt(t,m)).join('<i>vs</i>');
+    const pairs = d.pairs.map(t=>Array.isArray(t) ? t : (t.p||[]));
+    const txt = pairs.map(t=>teamTxt(t,m)).join('<i>vs</i>');
     return `<div class="drawcard"><div class="dt"><span>🎾 ${d.type==='single'?'Dvojhra':'Žreb dvojíc'} · ${g}. skupina</span>${admin?`<a onclick="deleteDraw(${g})" aria-label="Zmazať žreb">✕</a>`:''}</div><div class="dm">${txt}</div></div>`;
   }).join('');
 }
